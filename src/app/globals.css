@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f4ee;
+  --foreground: #17201f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(247, 244, 238, 0.96), rgba(247, 244, 238, 1)),
+    radial-gradient(circle at 12% 10%, rgba(20, 184, 166, 0.08), transparent 28%);
+  color: var(--foreground);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.28);
+}

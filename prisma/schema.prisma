@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  planned
+  active
+  completed
+}
+
+enum TransactionStatus {
+  imported
+  categorized
+  needs_review
+  reviewed
+}
+
+enum TransactionSource {
+  csv
+  quickbooks
+  demo
+}
+
+enum IntegrationProvider {
+  quickbooks
+}
+
+model Company {
+  id                     String                  @id @default(cuid())
+  name                   String
+  tradeType              String
+  createdAt              DateTime                @default(now())
+  jobs                   Job[]
+  transactions           Transaction[]
+  uploadBatches          UploadBatch[]
+  categoryRules          CategoryRule[]
+  integrationConnections IntegrationConnection[]
+}
+
+model Job {
+  id               String        @id @default(cuid())
+  companyId        String
+  name             String
+  customerName     String
+  tradeType        String
+  status           JobStatus
+  estimatedRevenue Decimal       @db.Decimal(12, 2)
+  actualRevenue    Decimal       @db.Decimal(12, 2)
+  startDate        DateTime?
+  endDate          DateTime?
+  createdAt        DateTime      @default(now())
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+
+  @@index([companyId])
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  companyId     String
+  jobId         String?
+  uploadBatchId String?
+  date          DateTime
+  description   String
+  merchant      String
+  amount        Decimal           @db.Decimal(12, 2)
+  rawCategory   String?
+  aiCategory    String            @default("Uncategorized")
+  confidence    Float             @default(0)
+  status        TransactionStatus @default(imported)
+  source        TransactionSource @default(csv)
+  createdAt     DateTime          @default(now())
+  company       Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job           Job?              @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  uploadBatch   UploadBatch?      @relation(fields: [uploadBatchId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, date])
+  @@index([companyId, status])
+  @@index([jobId])
+}
+
+model UploadBatch {
+  id            String        @id @default(cuid())
+  companyId     String
+  filename      String
+  rowCount      Int
+  importedCount Int
+  createdAt     DateTime      @default(now())
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@index([companyId])
+}
+
+model CategoryRule {
+  id        String   @id @default(cuid())
+  companyId String
+  keyword   String
+  category  String
+  tradeType String?
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model IntegrationConnection {
+  id           String              @id @default(cuid())
+  companyId    String
+  provider     IntegrationProvider
+  accessToken  String?
+  refreshToken String?
+  realmId      String?
+  status       String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider])
+}
