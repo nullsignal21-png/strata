@@ -1,5 +1,6 @@
 # Strata
 
+**Live Demo:** [https://strata-silk-five.vercel.app](https://strata-silk-five.vercel.app)
 Strata is a Phase 1 investor-demo MVP for small trade businesses. It turns uploaded bank or credit card CSVs into categorized, job-assigned transactions and shows job-level profitability for a seeded contractor demo company.
 
 ## Setup
