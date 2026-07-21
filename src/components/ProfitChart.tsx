@@ -13,7 +13,7 @@ export function ProfitChart({ jobs }: { jobs: JobFinancial[] }) {
         </div>
       </div>
       <div className="mt-6 grid gap-4">
-        {jobs.map((job) => (
+        {jobs.length ? jobs.map((job) => (
           <div key={job.id}>
             <div className="mb-2 flex items-center justify-between gap-3 text-sm">
               <span className="truncate font-medium">{job.name}</span>
@@ -28,7 +28,9 @@ export function ProfitChart({ jobs }: { jobs: JobFinancial[] }) {
               />
             </div>
           </div>
-        ))}
+        )) : (
+          <p className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-500">No job profitability data yet.</p>
+        )}
       </div>
     </div>
   );

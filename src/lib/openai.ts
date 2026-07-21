@@ -1,5 +1,7 @@
 import OpenAI from "openai";
-import { CATEGORIES } from "@/lib/categories";
+import { categoriesForDirection, type TransactionDirectionValue } from "@/lib/categories";
+import { getEnv, isAiCategorizationEnabled } from "@/lib/env";
+import { logger } from "@/lib/logging";
 import type { MatchableJob } from "@/lib/jobMatcher";
 
 export type ModelCategorization = {
@@ -9,77 +11,92 @@ export type ModelCategorization = {
   reason: string;
 };
 
-const schema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["category", "jobMatch", "confidence", "reason"],
-  properties: {
-    category: { type: "string", enum: CATEGORIES },
-    jobMatch: { anyOf: [{ type: "string" }, { type: "null" }] },
-    confidence: { type: "number", minimum: 0, maximum: 1 },
-    reason: { type: "string" },
-  },
-} as const;
+let client: OpenAI | null = null;
+
+function getOpenAIClient() {
+  const env = getEnv();
+  if (!env.OPENAI_API_KEY) return null;
+  client ??= new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  return client;
+}
 
 export async function categorizeWithOpenAI(input: {
   merchant: string;
   description: string;
+  memo: string | null;
   rawCategory: string | null;
-  amount: number;
+  direction: TransactionDirectionValue;
   jobs: MatchableJob[];
 }): Promise<ModelCategorization | null> {
-  if (!process.env.OPENAI_API_KEY) return null;
+  if (!isAiCategorizationEnabled()) return null;
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const response = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-    temperature: 0,
-    messages: [
+  const openai = getOpenAIClient();
+  const env = getEnv();
+  if (!openai || !env.OPENAI_MODEL) return null;
+
+  const allowedCategories = categoriesForDirection(input.direction);
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    required: ["category", "jobMatch", "confidence", "reason"],
+    properties: {
+      category: { type: "string", enum: allowedCategories },
+      jobMatch: { anyOf: [{ type: "string" }, { type: "null" }] },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
+      reason: { type: "string" },
+    },
+  } as const;
+
+  try {
+    const response = await openai.responses.create(
       {
-        role: "system",
-        content:
-          "Categorize contractor bank transactions for job costing. Return only the requested structured JSON.",
-      },
-      {
-        role: "user",
-        content: JSON.stringify({
+        model: env.OPENAI_MODEL,
+        instructions:
+          "Categorize contractor bank transactions for job costing. Return only the requested structured JSON. Use a job only when the transaction text clearly matches the job name, customer, city, address, or trade.",
+        input: JSON.stringify({
           transaction: {
             merchant: input.merchant,
             description: input.description,
+            memo: input.memo,
             rawCategory: input.rawCategory,
-            amount: input.amount,
+            direction: input.direction,
           },
-          categories: CATEGORIES,
+          allowedCategories,
           jobs: input.jobs.map((job) => ({
             name: job.name,
             customerName: job.customerName,
             tradeType: job.tradeType,
+            city: job.city,
           })),
         }),
+        store: false,
+        temperature: 0,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "transaction_categorization",
+            strict: true,
+            schema,
+          },
+        },
       },
-    ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "transaction_categorization",
-        strict: true,
-        schema,
-      },
-    },
-  });
+      { signal: AbortSignal.timeout(8000) },
+    );
 
-  const content = response.choices[0]?.message.content;
-  if (!content) return null;
+    const content = response.output_text;
+    if (!content) return null;
 
-  try {
     const parsed = JSON.parse(content) as ModelCategorization;
     return {
       category: parsed.category,
       jobMatch: parsed.jobMatch,
       confidence: Math.max(0, Math.min(1, parsed.confidence)),
-      reason: parsed.reason,
+      reason: parsed.reason.slice(0, 180),
     };
-  } catch {
+  } catch (error) {
+    logger.warn("openai_categorization_failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
     return null;
   }
 }

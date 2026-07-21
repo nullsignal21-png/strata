@@ -13,8 +13,8 @@ export default async function DashboardPage() {
 
   return (
     <AppShell>
-      {!metrics ? (
-        <SetupEmptyState />
+      {metrics.state !== "ready" ? (
+        <SetupEmptyState message={metrics.message} showCommands={metrics.state !== "database_unavailable"} />
       ) : (
         <div className="grid gap-7">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -34,13 +34,29 @@ export default async function DashboardPage() {
             totalJobCosts={metrics.totalJobCosts}
             grossProfit={metrics.grossProfit}
             averageMargin={metrics.averageMargin}
+            cashCollected={metrics.cashCollected}
             uncategorizedCount={metrics.uncategorizedCount}
             unassignedCount={metrics.unassignedCount}
+            needsReviewCount={metrics.needsReviewCount}
           />
 
           <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
             <ProfitChart jobs={metrics.topJobs} />
             <ReviewQueue jobs={metrics.atRiskJobs} />
+          </div>
+
+          <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Recent uploads</h2>
+            <div className="mt-4 grid gap-3">
+              {metrics.uploadBatches.map((batch) => (
+                <div key={batch.id} className="flex flex-col justify-between gap-2 rounded-md bg-slate-50 px-4 py-3 sm:flex-row">
+                  <span className="font-medium">{batch.filename}</span>
+                  <span className="text-sm text-slate-600">
+                    {batch.importedCount} imported, {batch.duplicateCount} duplicates, {batch.invalidCount} invalid
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <JobProfitTable jobs={metrics.topJobs} title="Top 5 jobs by profit" />

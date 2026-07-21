@@ -1,19 +1,20 @@
 import { Download, PlugZap } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { DemoResetForm } from "@/components/DemoResetForm";
 import { SetupEmptyState } from "@/components/SetupEmptyState";
-import { getCompanyOrNull } from "@/lib/metrics";
+import { getCompanyState } from "@/lib/metrics";
 import { quickBooksMode } from "@/lib/quickbooks";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const company = await getCompanyOrNull();
+  const state = await getCompanyState();
   const mode = quickBooksMode();
 
   return (
     <AppShell>
-      {!company ? (
-        <SetupEmptyState />
+      {state.state !== "ready" ? (
+        <SetupEmptyState message={state.message} showCommands={state.state !== "database_unavailable"} />
       ) : (
         <div className="grid gap-6">
           <div>
@@ -30,15 +31,19 @@ export default async function SettingsPage() {
               <dl className="mt-5 grid gap-4 text-sm">
                 <div className="flex justify-between gap-4 border-b border-slate-100 pb-3">
                   <dt className="text-slate-500">Company</dt>
-                  <dd className="font-medium">{company.name}</dd>
+                  <dd className="font-medium">{state.company.name}</dd>
                 </div>
                 <div className="flex justify-between gap-4 border-b border-slate-100 pb-3">
                   <dt className="text-slate-500">Trade type</dt>
-                  <dd className="font-medium">{company.tradeType}</dd>
+                  <dd className="font-medium">{state.company.tradeType}</dd>
+                </div>
+                <div className="flex justify-between gap-4 border-b border-slate-100 pb-3">
+                  <dt className="text-slate-500">Slug</dt>
+                  <dd className="font-mono text-xs">{state.company.slug}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-slate-500">Demo company ID</dt>
-                  <dd className="font-mono text-xs">{company.id}</dd>
+                  <dd className="font-mono text-xs">{state.company.id}</dd>
                 </div>
               </dl>
             </div>
@@ -52,7 +57,7 @@ export default async function SettingsPage() {
                   <h2 className="text-lg font-semibold">QuickBooks</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
                     {mode === "sandbox_oauth"
-                      ? "Sandbox credentials detected. Connect to simulate an OAuth handoff."
+                      ? "Sandbox credentials detected. The callback records a demo handoff only; the CSV export remains the reliable demo path."
                       : "QuickBooks export mode is active because sandbox environment variables are missing."}
                   </p>
                 </div>
@@ -77,6 +82,7 @@ export default async function SettingsPage() {
               </div>
             </div>
           </div>
+          <DemoResetForm />
         </div>
       )}
     </AppShell>

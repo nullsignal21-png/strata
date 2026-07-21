@@ -12,8 +12,8 @@ export default async function ReportsPage() {
 
   return (
     <AppShell>
-      {!report ? (
-        <SetupEmptyState />
+      {report.state !== "ready" ? (
+        <SetupEmptyState message={report.message} showCommands={report.state !== "database_unavailable"} />
       ) : (
         <div className="grid gap-6">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -25,18 +25,25 @@ export default async function ReportsPage() {
               </p>
             </div>
             <a
-              href="/api/export"
+              href="/api/export?type=quickbooks"
               className="focus-ring inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
             >
               <Download size={17} />
-              Export CSV
+              QuickBooks CSV
+            </a>
+            <a
+              href="/api/export?type=job-profitability"
+              className="focus-ring inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              <Download size={17} />
+              Job CSV
             </a>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Unassigned costs</p>
-              <p className="mt-3 text-3xl font-semibold">{formatCurrency(report.unassignedCosts)}</p>
+              <p className="text-sm text-slate-500">Unassigned expenses</p>
+              <p className="mt-3 text-3xl font-semibold">{formatCurrency(report.unassignedExpenses)}</p>
             </div>
             <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
               <p className="text-sm text-slate-500">Low-margin jobs</p>
@@ -61,15 +68,31 @@ export default async function ReportsPage() {
               </div>
             </div>
             <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold">Monthly spend</h2>
+              <h2 className="text-lg font-semibold">Monthly income versus expenses</h2>
               <div className="mt-5 grid gap-3">
-                {report.monthlySpend.map((item) => (
+                {report.monthlyIncomeExpense.map((item) => (
                   <div key={item.month} className="flex justify-between rounded-md bg-slate-50 px-4 py-3">
                     <span>{item.month}</span>
-                    <span className="font-semibold">{formatCurrency(item.amount)}</span>
+                    <span className="font-semibold">
+                      {formatCurrency(item.income)} / {formatCurrency(item.expense)}
+                    </span>
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Cash collected versus job revenue</h2>
+            <div className="mt-5 grid gap-3">
+              {report.cashVsRevenue.map((item) => (
+                <div key={item.jobId} className="grid gap-2 rounded-md bg-slate-50 px-4 py-3 md:grid-cols-[1fr_auto]">
+                  <span className="font-medium">{item.jobName}</span>
+                  <span>
+                    Cash {formatCurrency(item.cashCollected)} / revenue {formatCurrency(item.actualRevenue)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 

@@ -55,6 +55,13 @@ export function CreateJobForm() {
         <option>Plumbing</option>
         <option>Electrical</option>
       </select>
+      <input name="city" placeholder="City" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <input name="address" placeholder="Address" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <select name="status" className="focus-ring rounded-md border border-slate-300 px-3 py-2">
+        <option value="active">Active</option>
+        <option value="planned">Planned</option>
+        <option value="completed">Completed</option>
+      </select>
       <input name="estimatedRevenue" required type="number" min="0" step="0.01" placeholder="Estimated revenue" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
       <input name="actualRevenue" required type="number" min="0" step="0.01" placeholder="Actual revenue" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
       <div className="flex items-center gap-2 lg:col-span-6">

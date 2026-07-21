@@ -16,6 +16,7 @@ export function JobProfitTable({ jobs, title = "Job profitability" }: { jobs: Jo
               <th className="px-5 py-3">Job</th>
               <th className="px-5 py-3">Status</th>
               <th className="px-5 py-3 text-right">Revenue</th>
+              <th className="px-5 py-3 text-right">Cash</th>
               <th className="px-5 py-3 text-right">Costs</th>
               <th className="px-5 py-3 text-right">Profit</th>
               <th className="px-5 py-3 text-right">Margin</th>
@@ -34,6 +35,7 @@ export function JobProfitTable({ jobs, title = "Job profitability" }: { jobs: Jo
                   <StatusBadge status={job.status} />
                 </td>
                 <td className="px-5 py-4 text-right">{formatCurrency(job.actualRevenue)}</td>
+                <td className="px-5 py-4 text-right">{formatCurrency(job.cashCollected)}</td>
                 <td className="px-5 py-4 text-right">{formatCurrency(job.totalCosts)}</td>
                 <td className="px-5 py-4 text-right font-semibold">{formatCurrency(job.grossProfit)}</td>
                 <td className="px-5 py-4 text-right">
@@ -43,6 +45,13 @@ export function JobProfitTable({ jobs, title = "Job profitability" }: { jobs: Jo
                 </td>
               </tr>
             ))}
+            {!jobs.length ? (
+              <tr>
+                <td className="px-5 py-10 text-center text-slate-500" colSpan={7}>
+                  No jobs yet.
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>

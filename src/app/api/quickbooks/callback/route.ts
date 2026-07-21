@@ -1,7 +1,7 @@
 import { IntegrationProvider } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getDemoCompany } from "@/lib/metrics";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { hasQuickBooksEnv } from "@/lib/quickbooks";
 
 export const runtime = "nodejs";
@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/settings?quickbooks=export-mode", request.url));
   }
 
+  const prisma = getPrisma();
   await prisma.integrationConnection.upsert({
     where: {
       companyId_provider: {
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     },
     update: {
       realmId,
-      status: "sandbox_authorized",
+      status: "sandbox_demo_callback_received",
       accessToken: null,
       refreshToken: null,
     },
@@ -37,11 +38,11 @@ export async function GET(request: Request) {
       companyId: company.id,
       provider: IntegrationProvider.quickbooks,
       realmId,
-      status: "sandbox_authorized",
+      status: "sandbox_demo_callback_received",
       accessToken: null,
       refreshToken: null,
     },
   });
 
-  return NextResponse.redirect(new URL("/settings?quickbooks=connected", request.url));
+  return NextResponse.redirect(new URL("/settings?quickbooks=demo-callback", request.url));
 }

@@ -1,21 +1,42 @@
-import { TransactionStatus } from "@prisma/client";
+import { Prisma, TransactionStatus } from "@prisma/client";
 import { categorizeTransaction } from "@/lib/categorization";
 import type { ParsedTransaction } from "@/lib/csv";
-import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logging";
+import { getPrisma } from "@/lib/prisma";
+
+export async function findExistingFingerprints(companyId: string, fingerprints: string[]) {
+  if (!fingerprints.length) return new Set<string>();
+  const prisma = getPrisma();
+  const existing = await prisma.transaction.findMany({
+    where: { companyId, fingerprint: { in: fingerprints } },
+    select: { fingerprint: true },
+  });
+
+  return new Set(existing.map((transaction) => transaction.fingerprint));
+}
 
 export async function importParsedTransactions(input: {
   companyId: string;
   filename: string;
   transactions: ParsedTransaction[];
+  totalRows: number;
+  invalidCount: number;
+  duplicateCount: number;
+  incomeTotal: number;
+  expenseTotal: number;
 }) {
-  const batch = await prisma.uploadBatch.create({
-    data: {
-      companyId: input.companyId,
-      filename: input.filename,
-      rowCount: input.transactions.length,
-      importedCount: 0,
-    },
+  const prisma = getPrisma();
+  logger.info("upload_started", {
+    companyId: input.companyId,
+    filename: input.filename,
+    rowCount: input.totalRows,
   });
+
+  const existingFingerprints = await findExistingFingerprints(
+    input.companyId,
+    input.transactions.map((transaction) => transaction.fingerprint),
+  );
+  const importable = input.transactions.filter((transaction) => !existingFingerprints.has(transaction.fingerprint));
 
   const [jobs, rules] = await Promise.all([
     prisma.job.findMany({ where: { companyId: input.companyId } }),
@@ -23,64 +44,96 @@ export async function importParsedTransactions(input: {
   ]);
 
   let importedCount = 0;
-  let skippedCount = 0;
-
-  for (const transaction of input.transactions) {
-    const existing = await prisma.transaction.findFirst({
-      where: {
-        companyId: input.companyId,
-        date: new Date(`${transaction.date}T00:00:00.000Z`),
-        description: transaction.description,
-        merchant: transaction.merchant,
-        amount: transaction.amount,
-      },
-    });
-
-    if (existing) {
-      skippedCount += 1;
-      continue;
-    }
-
-    const categorized = await categorizeTransaction(
-      {
-        merchant: transaction.merchant,
-        description: `${transaction.description} ${transaction.memo ?? ""}`,
-        rawCategory: transaction.rawCategory,
-        amount: transaction.amount,
-      },
-      jobs,
-      rules,
-    );
-
-    await prisma.transaction.create({
+  const batch = await prisma.$transaction(async (tx) => {
+    const uploadBatch = await tx.uploadBatch.create({
       data: {
         companyId: input.companyId,
-        uploadBatchId: batch.id,
-        jobId: categorized.jobId,
-        date: new Date(`${transaction.date}T00:00:00.000Z`),
-        description: transaction.description,
-        merchant: transaction.merchant,
-        amount: transaction.amount,
-        rawCategory: transaction.rawCategory,
-        aiCategory: categorized.aiCategory,
-        confidence: categorized.confidence,
-        status: categorized.status,
-        source: "csv",
+        filename: input.filename,
+        rowCount: input.totalRows,
+        importedCount: 0,
+        invalidCount: input.invalidCount,
+        duplicateCount: input.duplicateCount + existingFingerprints.size,
+        skippedCount: input.invalidCount + input.duplicateCount + existingFingerprints.size,
+        incomeTotal: input.incomeTotal,
+        expenseTotal: input.expenseTotal,
       },
     });
 
-    importedCount += 1;
-  }
+    for (const transaction of importable) {
+      const categorized = await categorizeTransaction(
+        {
+          merchant: transaction.merchant,
+          description: transaction.description,
+          memo: transaction.memo,
+          rawCategory: transaction.rawCategory,
+          amount: transaction.amount,
+          direction: transaction.direction,
+        },
+        jobs,
+        rules,
+      );
 
-  await prisma.uploadBatch.update({
-    where: { id: batch.id },
-    data: { importedCount },
+      try {
+        await tx.transaction.create({
+          data: {
+            companyId: input.companyId,
+            uploadBatchId: uploadBatch.id,
+            jobId: categorized.jobId,
+            suggestedJobId: categorized.suggestedJobId,
+            matchConfidence: categorized.matchConfidence,
+            matchReason: categorized.matchReason,
+            date: new Date(`${transaction.date}T00:00:00.000Z`),
+            description: transaction.description,
+            merchant: transaction.merchant,
+            memo: transaction.memo,
+            amount: transaction.amount,
+            direction: transaction.direction,
+            fingerprint: transaction.fingerprint,
+            rawCategory: transaction.rawCategory,
+            aiCategory: categorized.aiCategory,
+            confidence: categorized.confidence,
+            status: categorized.status,
+            source: "csv",
+          },
+        });
+        importedCount += 1;
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return tx.uploadBatch.update({
+      where: { id: uploadBatch.id },
+      data: {
+        importedCount,
+        skippedCount: input.totalRows - importedCount,
+        duplicateCount: input.totalRows - importedCount - input.invalidCount,
+      },
+    });
   });
 
-  return { batchId: batch.id, rowCount: input.transactions.length, importedCount, skippedCount };
+  logger.info("upload_completed", {
+    companyId: input.companyId,
+    uploadBatchId: batch.id,
+    importedCount,
+    skippedCount: batch.skippedCount,
+  });
+
+  return {
+    batchId: batch.id,
+    rowCount: input.totalRows,
+    importedCount,
+    skippedCount: batch.skippedCount,
+    duplicateCount: batch.duplicateCount,
+    invalidCount: batch.invalidCount,
+  };
 }
 
 export async function categorizeExistingTransactions(companyId: string, transactionIds?: string[]) {
+  const prisma = getPrisma();
   const [jobs, rules, transactions] = await Promise.all([
     prisma.job.findMany({ where: { companyId } }),
     prisma.categoryRule.findMany({ where: { companyId } }),
@@ -100,8 +153,10 @@ export async function categorizeExistingTransactions(companyId: string, transact
       {
         merchant: transaction.merchant,
         description: transaction.description,
+        memo: transaction.memo,
         rawCategory: transaction.rawCategory,
         amount: Number(transaction.amount),
+        direction: transaction.direction,
       },
       jobs,
       rules,
@@ -111,6 +166,9 @@ export async function categorizeExistingTransactions(companyId: string, transact
       where: { id: transaction.id },
       data: {
         jobId: categorized.jobId,
+        suggestedJobId: categorized.suggestedJobId,
+        matchConfidence: categorized.matchConfidence,
+        matchReason: categorized.matchReason,
         aiCategory: categorized.aiCategory,
         confidence: categorized.confidence,
         status: categorized.status,
@@ -119,5 +177,6 @@ export async function categorizeExistingTransactions(companyId: string, transact
     updatedCount += 1;
   }
 
+  logger.info("categorization_completed", { companyId, updatedCount });
   return { updatedCount };
 }

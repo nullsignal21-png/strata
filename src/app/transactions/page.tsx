@@ -1,18 +1,21 @@
 import { AppShell } from "@/components/AppShell";
 import { SetupEmptyState } from "@/components/SetupEmptyState";
 import { TransactionTable } from "@/components/TransactionTable";
-import { getCompanyOrNull, getJobsWithFinancials, getTransactions } from "@/lib/metrics";
+import { getCompanyState, getJobsWithFinancials, getTransactions } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
-  const company = await getCompanyOrNull();
-  const [transactions, jobs] = company ? await Promise.all([getTransactions(company.id), getJobsWithFinancials(company.id)]) : [[], []];
+  const state = await getCompanyState();
+  const [transactions, jobs] =
+    state.state === "ready"
+      ? await Promise.all([getTransactions(state.company.id), getJobsWithFinancials(state.company.id)])
+      : [[], []];
 
   return (
     <AppShell>
-      {!company ? (
-        <SetupEmptyState />
+      {state.state !== "ready" ? (
+        <SetupEmptyState message={state.message} showCommands={state.state !== "database_unavailable"} />
       ) : (
         <div className="grid gap-6">
           <div>

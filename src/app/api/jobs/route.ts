@@ -1,7 +1,7 @@
-import { JobStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getDemoCompany, getJobsWithFinancials } from "@/lib/metrics";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+import { jobCreateSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -16,29 +16,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Seed the demo company before creating jobs." }, { status: 400 });
   }
 
-  const body = await request.json();
-  const name = String(body.name ?? "").trim();
-  const customerName = String(body.customerName ?? "").trim();
-  const tradeType = String(body.tradeType ?? "").trim();
-  const estimatedRevenue = Number(body.estimatedRevenue);
-  const actualRevenue = Number(body.actualRevenue);
-
-  if (!name || !customerName || !tradeType || !Number.isFinite(estimatedRevenue) || !Number.isFinite(actualRevenue)) {
-    return NextResponse.json({ error: "Name, customer, trade type, and revenue values are required." }, { status: 400 });
+  const parsed = jobCreateSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid job.", issues: parsed.error.flatten() }, { status: 400 });
   }
 
+  const prisma = getPrisma();
   const job = await prisma.job.create({
     data: {
       companyId: company.id,
-      name,
-      customerName,
-      tradeType,
-      estimatedRevenue,
-      actualRevenue,
-      status: JobStatus.active,
+      name: parsed.data.name,
+      customerName: parsed.data.customerName,
+      tradeType: parsed.data.tradeType,
+      city: parsed.data.city || null,
+      address: parsed.data.address || null,
+      estimatedRevenue: parsed.data.estimatedRevenue,
+      actualRevenue: parsed.data.actualRevenue,
+      status: parsed.data.status,
       startDate: new Date(),
     },
   });
 
-  return NextResponse.json({ job });
+  return NextResponse.json({ job }, { status: 201 });
 }

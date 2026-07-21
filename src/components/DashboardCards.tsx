@@ -6,8 +6,10 @@ type CardsProps = {
   totalJobCosts: number;
   grossProfit: number;
   averageMargin: number;
+  cashCollected: number;
   uncategorizedCount: number;
   unassignedCount: number;
+  needsReviewCount: number;
 };
 
 export function DashboardCards(props: CardsProps) {
@@ -31,15 +33,21 @@ export function DashboardCards(props: CardsProps) {
       icon: TrendingUp,
     },
     {
+      label: "Cash collected",
+      value: formatCurrency(props.cashCollected),
+      detail: "Imported income, not added to job revenue",
+      icon: CircleDollarSign,
+    },
+    {
       label: "Review queue",
-      value: String(props.uncategorizedCount + props.unassignedCount),
+      value: String(props.needsReviewCount),
       detail: `${props.uncategorizedCount} uncategorized, ${props.unassignedCount} unassigned`,
       icon: AlertTriangle,
     },
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       {cards.map((card) => {
         const Icon = card.icon;
         return (

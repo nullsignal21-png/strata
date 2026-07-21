@@ -1,0 +1,3 @@
+transaction date,description,merchant,amount
+2026-06-01,Large materials order,Ferguson,"($1,234.56)"
+2026-06-02,Refund,Ferguson Refund,$88.10

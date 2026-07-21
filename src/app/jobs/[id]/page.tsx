@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CategoryBadge } from "@/components/CategoryBadge";
+import { JobEditor } from "@/components/JobEditor";
 import { ProfitChart } from "@/components/ProfitChart";
 import { SetupEmptyState } from "@/components/SetupEmptyState";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -46,9 +47,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {[
               ["Revenue", formatCurrency(detail.job.actualRevenue)],
+              ["Cash collected", formatCurrency(detail.job.cashCollected)],
               ["Total costs", formatCurrency(detail.job.totalCosts)],
               ["Gross profit", formatCurrency(detail.job.grossProfit)],
               ["Margin", formatPercent(detail.job.margin)],
@@ -73,9 +75,17 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                   <span>Other expenses</span>
                   <span className="font-semibold">{formatCurrency(detail.job.otherExpenses)}</span>
                 </div>
+                {detail.expenseBreakdown.map((item) => (
+                  <div key={item.category} className="flex justify-between rounded-md bg-slate-50 px-4 py-3 text-sm">
+                    <span>{item.category}</span>
+                    <span className="font-semibold">{formatCurrency(item.amount)}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
+
+          <JobEditor job={detail.job} />
 
           <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
             <div className="border-b border-black/10 px-5 py-4">
@@ -87,6 +97,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                   <tr>
                     <th className="px-5 py-3">Date</th>
                     <th className="px-5 py-3">Merchant</th>
+                    <th className="px-5 py-3">Direction</th>
                     <th className="px-5 py-3">Category</th>
                     <th className="px-5 py-3 text-right">Amount</th>
                   </tr>
@@ -99,6 +110,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                         <p className="font-medium">{transaction.merchant}</p>
                         <p className="mt-1 text-xs text-slate-500">{transaction.description}</p>
                       </td>
+                      <td className="px-5 py-4 capitalize">{transaction.direction}</td>
                       <td className="px-5 py-4">
                         <CategoryBadge category={transaction.aiCategory} />
                       </td>

@@ -2,18 +2,18 @@ import { AppShell } from "@/components/AppShell";
 import { CreateJobForm } from "@/components/CreateJobForm";
 import { JobProfitTable } from "@/components/JobProfitTable";
 import { SetupEmptyState } from "@/components/SetupEmptyState";
-import { getCompanyOrNull, getJobsWithFinancials } from "@/lib/metrics";
+import { getCompanyState, getJobsWithFinancials } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
-  const company = await getCompanyOrNull();
-  const jobs = company ? await getJobsWithFinancials(company.id) : [];
+  const state = await getCompanyState();
+  const jobs = state.state === "ready" ? await getJobsWithFinancials(state.company.id) : [];
 
   return (
     <AppShell>
-      {!company ? (
-        <SetupEmptyState />
+      {state.state !== "ready" ? (
+        <SetupEmptyState message={state.message} showCommands={state.state !== "database_unavailable"} />
       ) : (
         <div className="grid gap-6">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
