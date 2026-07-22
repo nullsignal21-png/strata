@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 
 export function DemoResetForm() {
-  const router = useRouter();
   const [token, setToken] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
@@ -17,16 +15,27 @@ export function DemoResetForm() {
     setMessage(null);
 
     try {
-      const response = await fetch("/api/demo/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Demo reset failed.");
-      setToken("");
-      setMessage("Demo data reset.");
-      router.refresh();
+      try {
+        const response = await fetch("/api/demo/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+
+        if (!response.ok) {
+          setMessage((await response.json().catch(() => ({}))).error || "Demo reset failed.");
+          setIsResetting(false);
+          return;
+        }
+
+        setMessage("Demo data reset successfully.");
+        setToken("");
+        window.location.reload();
+      } catch (e) {
+        console.error(e);
+        setMessage("Network error or CORS issue during reset.");
+        setIsResetting(false);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Demo reset failed.");
     } finally {
