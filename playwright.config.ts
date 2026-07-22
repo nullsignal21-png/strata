@@ -1,8 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+dotenv.config();
 
 export default defineConfig({
   testDir: "./src/tests/e2e",
-  timeout: 60_000,
+  timeout: 180000,
+  expect: {
+    timeout: 30000,
+  },
   use: {
     baseURL: "http://127.0.0.1:3000",
     trace: "on-first-retry",

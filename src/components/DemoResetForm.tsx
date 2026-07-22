@@ -57,7 +57,7 @@ export function DemoResetForm() {
         />
         <button
           type="submit"
-          disabled={!token || isResetting}
+          disabled={isResetting}
           className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           <RotateCcw size={17} />
