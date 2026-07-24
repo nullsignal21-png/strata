@@ -52,18 +52,36 @@ export function JobEditor({ job }: { job: JobFinancial }) {
     <form onSubmit={save} className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold">Edit job</h2>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <input name="name" defaultValue={job.name} required className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-        <input name="customerName" defaultValue={job.customerName} required className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-        <input name="tradeType" defaultValue={job.tradeType} required className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-        <select name="status" defaultValue={job.status} className="focus-ring rounded-md border border-slate-300 px-3 py-2">
+        <input aria-label="Job name" name="name" defaultValue={job.name} required className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <input aria-label="Customer name" name="customerName" defaultValue={job.customerName} required className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <input aria-label="Trade type" name="tradeType" defaultValue={job.tradeType} required className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <select aria-label="Job status" name="status" defaultValue={job.status} className="focus-ring rounded-md border border-slate-300 px-3 py-2">
           <option value="planned">Planned</option>
           <option value="active">Active</option>
           <option value="completed">Completed</option>
         </select>
-        <input name="city" defaultValue={job.city ?? ""} placeholder="City" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-        <input name="address" defaultValue={job.address ?? ""} placeholder="Address" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-        <input name="estimatedRevenue" defaultValue={job.estimatedRevenue} type="number" min="0" step="0.01" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-        <input name="actualRevenue" defaultValue={job.actualRevenue} type="number" min="0" step="0.01" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <input aria-label="City" name="city" defaultValue={job.city ?? ""} placeholder="City" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <input aria-label="Address" name="address" defaultValue={job.address ?? ""} placeholder="Address" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <input aria-label="Estimated revenue" name="estimatedRevenue" defaultValue={job.estimatedRevenue} type="number" min="0" step="0.01" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <input aria-label="Actual revenue" name="actualRevenue" defaultValue={job.actualRevenue} type="number" min="0" step="0.01" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+        <label className="text-xs font-medium text-slate-600">
+          Start date
+          <input
+            name="startDate"
+            defaultValue={job.startDate?.slice(0, 10) ?? ""}
+            type="date"
+            className="focus-ring mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-600">
+          End date
+          <input
+            name="endDate"
+            defaultValue={job.endDate?.slice(0, 10) ?? ""}
+            type="date"
+            className="focus-ring mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </label>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button disabled={isSaving} className="focus-ring inline-flex items-center gap-2 rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:bg-slate-300">
@@ -74,7 +92,7 @@ export function JobEditor({ job }: { job: JobFinancial }) {
           <Trash2 size={16} />
           Delete
         </button>
-        {message ? <span className="text-sm text-slate-600">{message}</span> : null}
+        {message ? <span aria-live="polite" className="text-sm text-slate-600">{message}</span> : null}
       </div>
     </form>
   );

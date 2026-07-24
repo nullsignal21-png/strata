@@ -13,7 +13,8 @@
     "typecheck": "tsc --project tsconfig.typecheck.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:performance": "node scripts/qa-performance.mjs",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
@@ -27,7 +28,7 @@
     "@prisma/client": "^6.19.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
-    "next": "16.2.6",
+    "next": "^16.2.11",
     "openai": "^6.10.0",
     "papaparse": "^5.5.3",
     "react": "19.2.4",
@@ -36,6 +37,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
@@ -47,13 +49,17 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "^16.2.11",
     "jsdom": "^29.1.1",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "8.5.21",
+    "sharp": "0.35.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

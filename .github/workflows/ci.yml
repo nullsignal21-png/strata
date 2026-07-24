@@ -4,17 +4,35 @@ on:
   push:
     branches:
       - master
+      - qa/**
   pull_request:
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: strata_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d strata_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/strata_test"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/strata_test?schema=public"
       DEMO_MODE: "true"
       DEMO_COMPANY_SLUG: "triangle-hvac-plumbing"
       DEMO_RESET_TOKEN: "test-reset-token"
+      ENABLE_AI_CATEGORIZATION: "false"
+      STRATA_INTEGRATION_DB: "true"
 
     steps:
       - name: Checkout repository
@@ -32,6 +50,14 @@ jobs:
       - name: Generate Prisma Client
         run: npm run db:generate
 
+      - name: Apply database migrations
+        run: npm run db:migrate:deploy
+
+      - name: Seed database twice
+        run: |
+          npm run db:seed
+          npm run db:seed
+
       - name: Run linter
         run: npm run lint
 
@@ -41,5 +67,16 @@ jobs:
       - name: Run tests
         run: npm run test
 
+      - name: Audit dependencies
+        run: |
+          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high
+
       - name: Build
         run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Run browser and API tests
+        run: npm run test:e2e

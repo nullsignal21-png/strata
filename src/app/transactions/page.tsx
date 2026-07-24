@@ -17,7 +17,7 @@ export default async function TransactionsPage() {
       {state.state !== "ready" ? (
         <SetupEmptyState message={state.message} showCommands={state.state !== "database_unavailable"} />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Review workflow</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal">Transactions</h1>

@@ -20,7 +20,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       {!detail ? (
         <SetupEmptyState />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div>
             <Link href="/jobs" className="text-sm font-semibold text-teal-700 hover:text-teal-900">
               Back to jobs
@@ -47,7 +47,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
             {[
               ["Revenue", formatCurrency(detail.job.actualRevenue)],
               ["Cash collected", formatCurrency(detail.job.cashCollected)],
@@ -62,7 +62,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             ))}
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.85fr_1.15fr]">
             <ProfitChart jobs={[detail.job]} />
             <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold">Cost breakdown</h2>
@@ -87,7 +87,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
           <JobEditor job={detail.job} />
 
-          <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+          <div className="min-w-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
             <div className="border-b border-black/10 px-5 py-4">
               <h2 className="text-lg font-semibold">Assigned transactions</h2>
             </div>

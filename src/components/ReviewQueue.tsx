@@ -4,7 +4,7 @@ import { formatPercent } from "@/lib/format";
 
 export function ReviewQueue({ jobs }: { jobs: JobFinancial[] }) {
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+    <div className="min-w-0 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Jobs at risk</h2>

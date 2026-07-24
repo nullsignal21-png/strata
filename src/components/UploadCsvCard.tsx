@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CheckCircle2, Download, Loader2, UploadCloud } from "lucide-react";
 import { formatCurrencyPrecise } from "@/lib/format";
-import type { SignedAmountConvention } from "@/lib/csv";
+import type { CsvColumn, CsvColumnMapping, SignedAmountConvention } from "@/lib/csv";
 
 type PreviewRow = {
   date: string;
@@ -16,6 +16,7 @@ type PreviewRow = {
 };
 
 type PreviewData = {
+  headers: string[];
   mappedColumns: Record<string, string | null>;
   detectedSignConvention: SignedAmountConvention;
   totalRows: number;
@@ -29,17 +30,42 @@ type PreviewData = {
   errors: string[];
 };
 
+const mappingFields: Array<{ field: CsvColumn; label: string }> = [
+  { field: "date", label: "Date" },
+  { field: "description", label: "Description" },
+  { field: "merchant", label: "Merchant" },
+  { field: "amount", label: "Signed amount" },
+  { field: "debit", label: "Debit" },
+  { field: "credit", label: "Credit" },
+  { field: "transactionType", label: "Transaction type" },
+  { field: "category", label: "Category" },
+  { field: "memo", label: "Memo" },
+];
+
 export function UploadCsvCard() {
   const [file, setFile] = useState<File | null>(null);
   const [signConvention, setSignConvention] = useState<SignedAmountConvention>("negative_expense");
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [columnMapping, setColumnMapping] = useState<CsvColumnMapping | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const previewRequest = useRef<{ id: number; controller: AbortController } | null>(null);
 
   const canImport = file && preview && preview.validRowCount > 0 && !isImporting;
 
-  async function previewFile(nextFile = file, nextConvention = signConvention) {
+  async function previewFile(
+    nextFile = file,
+    nextConvention = signConvention,
+    nextMapping = columnMapping,
+  ) {
+    previewRequest.current?.controller.abort();
+    const request = {
+      id: (previewRequest.current?.id ?? 0) + 1,
+      controller: new AbortController(),
+    };
+    previewRequest.current = request;
     setPreview(null);
     setMessage(null);
     if (!nextFile) return;
@@ -50,26 +76,46 @@ export function UploadCsvCard() {
       form.append("file", nextFile);
       form.append("preview", "true");
       form.append("signedAmountConvention", nextConvention);
-      const response = await fetch("/api/upload", { method: "POST", body: form });
+      if (nextMapping) form.append("columnMapping", JSON.stringify(nextMapping));
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: form,
+        signal: request.controller.signal,
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not parse CSV.");
+      if (previewRequest.current?.id !== request.id) return;
+      const responseHeaders = Array.isArray(data.headers)
+        ? data.headers
+        : Array.from(new Set(Object.values(data.mappedColumns ?? {}).filter(Boolean))) as string[];
+      setHeaders(responseHeaders);
+      setColumnMapping(data.mappedColumns ?? {});
       setPreview(data);
       setMessage(`Previewed ${data.validRowCount} importable rows from ${data.totalRows} data rows.`);
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       setMessage(error instanceof Error ? error.message : "Could not parse CSV.");
     } finally {
-      setIsParsing(false);
+      if (previewRequest.current?.id === request.id) setIsParsing(false);
     }
   }
 
   async function handleFile(nextFile: File | null) {
     setFile(nextFile);
-    await previewFile(nextFile);
+    setHeaders([]);
+    setColumnMapping(null);
+    await previewFile(nextFile, signConvention, null);
   }
 
   async function updateConvention(nextConvention: SignedAmountConvention) {
     setSignConvention(nextConvention);
     await previewFile(file, nextConvention);
+  }
+
+  async function updateMapping(field: CsvColumn, header: string) {
+    const nextMapping = { ...columnMapping, [field]: header || null };
+    setColumnMapping(nextMapping);
+    await previewFile(file, signConvention, nextMapping);
   }
 
   async function importCsv() {
@@ -80,6 +126,7 @@ export function UploadCsvCard() {
       const form = new FormData();
       form.append("file", file);
       form.append("signedAmountConvention", signConvention);
+      if (columnMapping) form.append("columnMapping", JSON.stringify(columnMapping));
       const response = await fetch("/api/upload", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Import failed.");
@@ -94,7 +141,7 @@ export function UploadCsvCard() {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1.2fr]">
       <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="rounded-md bg-teal-50 p-2 text-teal-700">
@@ -137,6 +184,33 @@ export function UploadCsvCard() {
           </label>
         </fieldset>
 
+        {headers.length ? (
+          <fieldset className="mt-5 rounded-md border border-slate-200 p-3">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Column mapping
+            </legend>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              {mappingFields.map(({ field, label }) => (
+                <label key={field} className="text-xs font-medium text-slate-600">
+                  {label}
+                  <select
+                    value={columnMapping?.[field] ?? ""}
+                    onChange={(event) => updateMapping(field, event.target.value)}
+                    className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                  >
+                    <option value="">Not mapped</option>
+                    {headers.map((header) => (
+                      <option key={header} value={header}>
+                        {header}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
+
         <label className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center transition hover:border-teal-400 hover:bg-teal-50/40">
           <input
             type="file"
@@ -159,7 +233,7 @@ export function UploadCsvCard() {
           Import and Categorize
         </button>
 
-        {message ? <p className="mt-4 rounded-md bg-teal-50 px-4 py-3 text-sm text-teal-800">{message}</p> : null}
+        {message ? <p aria-live="polite" className="mt-4 rounded-md bg-teal-50 px-4 py-3 text-sm text-teal-800">{message}</p> : null}
         {preview?.errors.length ? (
           <div className="mt-3 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <p className="font-medium">Skipped and invalid rows</p>
@@ -172,7 +246,7 @@ export function UploadCsvCard() {
         ) : null}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+      <div className="min-w-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
         <div className="border-b border-black/10 px-5 py-4">
           <h2 className="text-lg font-semibold">Preview</h2>
           <p className="mt-1 text-sm text-slate-500">

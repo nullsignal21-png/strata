@@ -2,7 +2,7 @@ import type { JobFinancial, TransactionRow } from "@/lib/metrics";
 
 export function escapeCsvCell(value: string | number | null) {
   const text = String(value ?? "");
-  const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+  const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text;
   return `"${safeText.replace(/"/g, '""')}"`;
 }
 

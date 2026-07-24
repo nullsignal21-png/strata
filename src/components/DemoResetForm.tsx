@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 
 export function DemoResetForm() {
+  const router = useRouter();
   const [token, setToken] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
@@ -15,29 +17,22 @@ export function DemoResetForm() {
     setMessage(null);
 
     try {
-      try {
-        const response = await fetch("/api/demo/reset", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
+      const response = await fetch("/api/demo/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
 
-        if (!response.ok) {
-          setMessage((await response.json().catch(() => ({}))).error || "Demo reset failed.");
-          setIsResetting(false);
-          return;
-        }
-
-        setMessage("Demo data reset successfully.");
-        setToken("");
-        window.location.reload();
-      } catch (e) {
-        console.error(e);
-        setMessage("Network error or CORS issue during reset.");
-        setIsResetting(false);
+      if (!response.ok) {
+        setMessage((await response.json().catch(() => ({}))).error || "Demo reset failed.");
+        return;
       }
+
+      setMessage("Demo data reset successfully.");
+      setToken("");
+      router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Demo reset failed.");
+      setMessage(error instanceof Error ? error.message : "Network error during demo reset.");
     } finally {
       setIsResetting(false);
     }
@@ -61,6 +56,7 @@ export function DemoResetForm() {
           value={token}
           onChange={(event) => setToken(event.target.value)}
           type="password"
+          aria-label="Demo reset token"
           placeholder="Demo reset token"
           className="focus-ring min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
         />
@@ -73,7 +69,11 @@ export function DemoResetForm() {
           Reset
         </button>
       </div>
-      {message ? <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">{message}</p> : null}
+      {message ? (
+        <p aria-live="polite" className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          {message}
+        </p>
+      ) : null}
     </form>
   );
 }

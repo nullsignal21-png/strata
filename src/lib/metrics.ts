@@ -3,6 +3,7 @@ import { ensureDemoData } from "@/lib/demoData";
 import { getEnv, isDemoMode } from "@/lib/env";
 import { logger } from "@/lib/logging";
 import { getPrisma } from "@/lib/prisma";
+import { calculateJobProfitability, sumMoney } from "@/lib/profitability";
 
 export type SetupState =
   | { state: "database_unavailable"; message: string }
@@ -17,6 +18,8 @@ export type JobFinancial = {
   tradeType: string;
   city: string | null;
   address: string | null;
+  startDate: string | null;
+  endDate: string | null;
   status: string;
   estimatedRevenue: number;
   actualRevenue: number;
@@ -109,14 +112,18 @@ export async function getJobsWithFinancials(companyId?: string): Promise<JobFina
 
   return jobs.map((job) => {
     const expenseTransactions = job.transactions.filter((transaction) => transaction.direction === TransactionDirection.expense);
-    const incomeTransactions = job.transactions.filter((transaction) => transaction.direction === TransactionDirection.income);
-    const materialCosts = expenseTransactions
-      .filter((transaction) => transaction.aiCategory === "Materials")
-      .reduce((sum, transaction) => sum + money(transaction.amount), 0);
-    const totalCosts = expenseTransactions.reduce((sum, transaction) => sum + money(transaction.amount), 0);
-    const cashCollected = incomeTransactions.reduce((sum, transaction) => sum + money(transaction.amount), 0);
-    const actualRevenue = money(job.actualRevenue);
-    const grossProfit = actualRevenue - totalCosts;
+    const materialCosts = sumMoney(
+      expenseTransactions
+        .filter((transaction) => transaction.aiCategory === "Materials")
+        .map((transaction) => money(transaction.amount)),
+    );
+    const profitability = calculateJobProfitability(
+      money(job.actualRevenue),
+      job.transactions.map((transaction) => ({
+        amount: money(transaction.amount),
+        direction: transaction.direction,
+      })),
+    );
 
     return {
       id: job.id,
@@ -125,15 +132,17 @@ export async function getJobsWithFinancials(companyId?: string): Promise<JobFina
       tradeType: job.tradeType,
       city: job.city,
       address: job.address,
+      startDate: job.startDate?.toISOString() ?? null,
+      endDate: job.endDate?.toISOString() ?? null,
       status: job.status,
       estimatedRevenue: money(job.estimatedRevenue),
-      actualRevenue,
-      cashCollected,
+      actualRevenue: profitability.actualRevenue,
+      cashCollected: profitability.cashCollected,
       materialCosts,
-      otherExpenses: totalCosts - materialCosts,
-      totalCosts,
-      grossProfit,
-      margin: actualRevenue > 0 ? grossProfit / actualRevenue : 0,
+      otherExpenses: sumMoney([profitability.jobCosts, -materialCosts]),
+      totalCosts: profitability.jobCosts,
+      grossProfit: profitability.grossProfit,
+      margin: profitability.margin,
     };
   });
 }
@@ -167,9 +176,9 @@ export async function getDashboardMetrics() {
         prisma.uploadBatch.findMany({ where: { companyId: company.id }, orderBy: { createdAt: "desc" }, take: 3 }),
       ]);
 
-    const totalRevenue = jobs.reduce((sum, job) => sum + job.actualRevenue, 0);
-    const totalJobCosts = jobs.reduce((sum, job) => sum + job.totalCosts, 0);
-    const grossProfit = totalRevenue - totalJobCosts;
+    const totalRevenue = sumMoney(jobs.map((job) => job.actualRevenue));
+    const totalJobCosts = sumMoney(jobs.map((job) => job.totalCosts));
+    const grossProfit = sumMoney([totalRevenue, -totalJobCosts]);
     const averageMargin = totalRevenue > 0 ? grossProfit / totalRevenue : 0;
 
     return {
@@ -239,8 +248,10 @@ export async function getTransactions(companyId?: string): Promise<TransactionRo
 
 export async function getJobDetail(jobId: string) {
   const prisma = getPrisma();
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
+  const company = await getDemoCompany();
+  if (!company) return null;
+  const job = await prisma.job.findFirst({
+    where: { id: jobId, companyId: company.id },
     include: { transactions: { orderBy: { date: "desc" } }, company: true },
   });
 
@@ -253,14 +264,19 @@ export async function getJobDetail(jobId: string) {
 
   const expenseBreakdown = new Map<string, number>();
   for (const transaction of jobRows.filter((row) => row.direction === "expense")) {
-    expenseBreakdown.set(transaction.aiCategory, (expenseBreakdown.get(transaction.aiCategory) ?? 0) + transaction.amount);
+    expenseBreakdown.set(
+      transaction.aiCategory,
+      sumMoney([expenseBreakdown.get(transaction.aiCategory) ?? 0, transaction.amount]),
+    );
   }
 
   return {
     job: financial,
     company: job.company,
     transactions: jobRows,
-    expenseBreakdown: Array.from(expenseBreakdown.entries()).map(([category, amount]) => ({ category, amount })),
+    expenseBreakdown: Array.from(expenseBreakdown.entries())
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((left, right) => right.amount - left.amount || left.category.localeCompare(right.category)),
   };
 }
 
@@ -282,10 +298,13 @@ export async function getReportData() {
       const month = transaction.date.slice(0, 7);
       const current = monthly.get(month) ?? { income: 0, expense: 0 };
       if (transaction.direction === "expense") {
-        categorySpend.set(transaction.aiCategory, (categorySpend.get(transaction.aiCategory) ?? 0) + transaction.amount);
-        current.expense += transaction.amount;
+        categorySpend.set(
+          transaction.aiCategory,
+          sumMoney([categorySpend.get(transaction.aiCategory) ?? 0, transaction.amount]),
+        );
+        current.expense = sumMoney([current.expense, transaction.amount]);
       } else {
-        current.income += transaction.amount;
+        current.income = sumMoney([current.income, transaction.amount]);
       }
       monthly.set(month, current);
     }
@@ -295,11 +314,15 @@ export async function getReportData() {
       company,
       jobs,
       transactions,
-      categorySpend: Array.from(categorySpend.entries()).map(([category, amount]) => ({ category, amount })),
-      monthlyIncomeExpense: Array.from(monthly.entries()).map(([month, totals]) => ({ month, ...totals })),
+      categorySpend: Array.from(categorySpend.entries())
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((left, right) => right.amount - left.amount || left.category.localeCompare(right.category)),
+      monthlyIncomeExpense: Array.from(monthly.entries())
+        .map(([month, totals]) => ({ month, ...totals }))
+        .sort((left, right) => left.month.localeCompare(right.month)),
       unassignedExpenses: transactions
         .filter((transaction) => transaction.direction === "expense" && !transaction.jobId)
-        .reduce((sum, transaction) => sum + transaction.amount, 0),
+        .reduce((sum, transaction) => sumMoney([sum, transaction.amount]), 0),
       lowMarginJobs: jobs.filter((job) => job.margin < 0.2),
       cashVsRevenue: jobs.map((job) => ({
         jobId: job.id,

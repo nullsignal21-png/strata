@@ -1,5 +1,6 @@
 import {
   JobStatus,
+  Prisma,
   PrismaClient,
   TransactionDirection,
   TransactionSource,
@@ -81,7 +82,10 @@ const transactions = [
   [null, "2026-06-24", "Client refund duplicate material return", "Ferguson Refund", null, 188.12, TransactionDirection.income, "Refund", 0.86, TransactionStatus.needs_review],
 ] as const;
 
-export async function ensureDemoDataWithClient(prisma: PrismaClient, slug = demoCompany.slug) {
+export async function ensureDemoDataWithClient(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  slug = demoCompany.slug,
+) {
   const company = await prisma.company.upsert({
     where: { slug },
     update: { name: demoCompany.name, tradeType: demoCompany.tradeType },

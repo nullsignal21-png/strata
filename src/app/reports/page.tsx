@@ -15,7 +15,7 @@ export default async function ReportsPage() {
       {report.state !== "ready" ? (
         <SetupEmptyState message={report.message} showCommands={report.state !== "database_unavailable"} />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Investor demo report</p>
@@ -40,7 +40,7 @@ export default async function ReportsPage() {
             </a>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
               <p className="text-sm text-slate-500">Unassigned expenses</p>
               <p className="mt-3 text-3xl font-semibold">{formatCurrency(report.unassignedExpenses)}</p>
@@ -55,7 +55,7 @@ export default async function ReportsPage() {
             </div>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
             <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold">Cost by category</h2>
               <div className="mt-5 grid gap-3">

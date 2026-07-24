@@ -16,7 +16,7 @@ export default async function SettingsPage() {
       {state.state !== "ready" ? (
         <SetupEmptyState message={state.message} showCommands={state.state !== "database_unavailable"} />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Demo settings</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal">Settings & integrations</h1>
@@ -25,7 +25,7 @@ export default async function SettingsPage() {
             </p>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold">Company profile</h2>
               <dl className="mt-5 grid gap-4 text-sm">

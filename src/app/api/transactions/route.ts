@@ -1,8 +1,9 @@
 import { TransactionStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { categoriesForDirection, defaultCategoryForDirection } from "@/lib/categories";
-import { getTransactions } from "@/lib/metrics";
+import { getDemoCompany, getTransactions } from "@/lib/metrics";
 import { getPrisma } from "@/lib/prisma";
+import { readJsonBody, rejectCrossOriginMutation } from "@/lib/requestSecurity";
 import { transactionPatchSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -13,13 +14,25 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const parsed = transactionPatchSchema.safeParse(await request.json().catch(() => null));
+  const originError = rejectCrossOriginMutation(request);
+  if (originError) return originError;
+
+  const body = await readJsonBody(request);
+  if (!body.ok) return body.response;
+  const parsed = transactionPatchSchema.safeParse(body.data);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid transaction update.", issues: parsed.error.flatten() }, { status: 400 });
   }
 
   const prisma = getPrisma();
-  const current = await prisma.transaction.findUnique({ where: { id: parsed.data.id }, include: { job: true } });
+  const company = await getDemoCompany();
+  if (!company) {
+    return NextResponse.json({ error: "Demo company is absent." }, { status: 400 });
+  }
+  const current = await prisma.transaction.findFirst({
+    where: { id: parsed.data.id, companyId: company.id },
+    include: { job: true },
+  });
   if (!current) {
     return NextResponse.json({ error: "Transaction not found." }, { status: 404 });
   }
@@ -86,6 +99,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const originError = rejectCrossOriginMutation(request);
+  if (originError) return originError;
+
   const id = new URL(request.url).searchParams.get("id");
   const parsed = transactionPatchSchema.shape.id.safeParse(id);
   if (!parsed.success) {
@@ -93,7 +109,13 @@ export async function DELETE(request: Request) {
   }
 
   const prisma = getPrisma();
-  const existing = await prisma.transaction.findUnique({ where: { id: parsed.data } });
+  const company = await getDemoCompany();
+  if (!company) {
+    return NextResponse.json({ error: "Demo company is absent." }, { status: 400 });
+  }
+  const existing = await prisma.transaction.findFirst({
+    where: { id: parsed.data, companyId: company.id },
+  });
   if (!existing) {
     return NextResponse.json({ error: "Transaction not found." }, { status: 404 });
   }

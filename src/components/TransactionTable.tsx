@@ -44,9 +44,16 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
           .toLowerCase()
           .includes(filters.query.toLowerCase());
       const directionMatch = filters.direction === "all" || transaction.direction === filters.direction;
-      const categoryMatch = filters.category === "all" || transaction.aiCategory === filters.category;
+      const isUncategorized = ["Uncategorized", "Uncategorized Income"].includes(transaction.aiCategory);
+      const categoryMatch =
+        filters.category === "all" ||
+        (filters.category === "categorized" ? !isUncategorized : false) ||
+        (filters.category === "uncategorized" ? isUncategorized : false) ||
+        transaction.aiCategory === filters.category;
       const jobMatch =
-        filters.job === "all" || (filters.job === "unassigned" ? !transaction.jobId : transaction.jobId === filters.job);
+        filters.job === "all" ||
+        (filters.job === "assigned" ? Boolean(transaction.jobId) : false) ||
+        (filters.job === "unassigned" ? !transaction.jobId : transaction.jobId === filters.job);
       const statusMatch = filters.status === "all" || transaction.status === filters.status;
       const uploadMatch = filters.uploadBatch === "all" || transaction.uploadBatchId === filters.uploadBatch;
       const day = transaction.date.slice(0, 10);
@@ -146,7 +153,7 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
       <div className="border-b border-black/10 p-5">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
@@ -186,7 +193,7 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-8">
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500 xl:col-span-2">
               Search
               <input
@@ -198,7 +205,7 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
             </label>
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Direction
-              <select value={filters.direction} onChange={(event) => updateFilter("direction", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
+              <select aria-label="Direction filter" value={filters.direction} onChange={(event) => updateFilter("direction", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
                 <option value="all">All</option>
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
@@ -206,8 +213,10 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
             </label>
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Category
-              <select value={filters.category} onChange={(event) => updateFilter("category", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
+              <select aria-label="Category filter" value={filters.category} onChange={(event) => updateFilter("category", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
                 <option value="all">All</option>
+                <option value="categorized">Categorized</option>
+                <option value="uncategorized">Uncategorized</option>
                 {CATEGORIES.map((category) => (
                   <option value={category} key={category}>{category}</option>
                 ))}
@@ -215,8 +224,9 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
             </label>
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Job
-              <select value={filters.job} onChange={(event) => updateFilter("job", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
+              <select aria-label="Job filter" value={filters.job} onChange={(event) => updateFilter("job", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
                 <option value="all">All</option>
+                <option value="assigned">Assigned</option>
                 <option value="unassigned">Unassigned</option>
                 {jobs.map((job) => (
                   <option value={job.id} key={job.id}>{job.name}</option>
@@ -225,7 +235,7 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
             </label>
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Review
-              <select value={filters.status} onChange={(event) => updateFilter("status", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
+              <select aria-label="Review filter" value={filters.status} onChange={(event) => updateFilter("status", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
                 <option value="all">All</option>
                 <option value="needs_review">Needs review</option>
                 <option value="reviewed">Reviewed</option>
@@ -235,7 +245,7 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
             </label>
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Upload
-              <select value={filters.uploadBatch} onChange={(event) => updateFilter("uploadBatch", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
+              <select aria-label="Upload filter" value={filters.uploadBatch} onChange={(event) => updateFilter("uploadBatch", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal">
                 <option value="all">All</option>
                 {uploadBatchOptions.map((id) => {
                   const batch = transactions.find((row) => row.uploadBatchId === id);
@@ -251,14 +261,18 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
             </div>
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
               From
-              <input type="date" value={filters.startDate} onChange={(event) => updateFilter("startDate", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal" />
+              <input aria-label="Start date filter" type="date" value={filters.startDate} onChange={(event) => updateFilter("startDate", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal" />
             </label>
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
               To
-              <input type="date" value={filters.endDate} onChange={(event) => updateFilter("endDate", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal" />
+              <input aria-label="End date filter" type="date" value={filters.endDate} onChange={(event) => updateFilter("endDate", event.target.value)} className="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm normal-case tracking-normal" />
             </label>
           </div>
-          {message ? <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">{message}</p> : null}
+          {message ? (
+            <p aria-live="polite" className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {message}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -299,14 +313,26 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
                   <p className="mt-1 max-w-md text-xs leading-5 text-slate-500">{transaction.description}</p>
                 </td>
                 <td className="px-5 py-4">
-                  <select value={transaction.direction} onChange={(event) => updateTransaction(transaction.id, { direction: event.target.value as "income" | "expense" })} className="focus-ring w-28 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm">
+                  <select
+                    aria-label={`Direction for ${transaction.merchant}`}
+                    disabled={savingId === transaction.id}
+                    value={transaction.direction}
+                    onChange={(event) => updateTransaction(transaction.id, { direction: event.target.value as "income" | "expense" })}
+                    className="focus-ring w-28 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                  >
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
                   </select>
                 </td>
                 <td className="px-5 py-4 text-right whitespace-nowrap">{formatCurrencyPrecise(transaction.amount)}</td>
                 <td className="px-5 py-4">
-                  <select value={transaction.aiCategory} onChange={(event) => updateTransaction(transaction.id, { aiCategory: event.target.value })} className="focus-ring w-48 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm">
+                  <select
+                    aria-label={`Category for ${transaction.merchant}`}
+                    disabled={savingId === transaction.id}
+                    value={transaction.aiCategory}
+                    onChange={(event) => updateTransaction(transaction.id, { aiCategory: event.target.value })}
+                    className="focus-ring w-48 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                  >
                     {categoriesForDirection(transaction.direction).map((category) => (
                       <option value={category} key={category}>{category}</option>
                     ))}
@@ -314,7 +340,13 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
                   <div className="mt-2"><CategoryBadge category={transaction.aiCategory} /></div>
                 </td>
                 <td className="px-5 py-4">
-                  <select value={transaction.jobId ?? "unassigned"} onChange={(event) => updateTransaction(transaction.id, { jobId: event.target.value === "unassigned" ? null : event.target.value })} className="focus-ring w-56 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm">
+                  <select
+                    aria-label={`Assigned job for ${transaction.merchant}`}
+                    disabled={savingId === transaction.id}
+                    value={transaction.jobId ?? "unassigned"}
+                    onChange={(event) => updateTransaction(transaction.id, { jobId: event.target.value === "unassigned" ? null : event.target.value })}
+                    className="focus-ring w-56 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                  >
                     <option value="unassigned">Unassigned</option>
                     {jobs.map((job) => (
                       <option value={job.id} key={job.id}>{job.name}</option>
@@ -332,9 +364,16 @@ export function TransactionTable({ initialTransactions, jobs }: Props) {
                 <td className="px-5 py-4"><StatusBadge status={transaction.status} /></td>
                 <td className="px-5 py-4 text-right">
                   <div className="flex justify-end gap-2">
-                    <button type="button" disabled={savingId === transaction.id} onClick={() => updateTransaction(transaction.id, { status: "reviewed" })} className="focus-ring inline-flex items-center gap-2 rounded-md bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700 disabled:bg-slate-300">
+                    <button
+                      type="button"
+                      disabled={savingId === transaction.id}
+                      onClick={() => updateTransaction(transaction.id, {
+                        status: transaction.status === "reviewed" ? "needs_review" : "reviewed",
+                      })}
+                      className="focus-ring inline-flex items-center gap-2 rounded-md bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700 disabled:bg-slate-300"
+                    >
                       <CheckCircle2 size={15} />
-                      Review
+                      {transaction.status === "reviewed" ? "Unreview" : "Review"}
                     </button>
                     <button type="button" disabled={savingId === transaction.id} onClick={() => deleteTransaction(transaction.id)} className="focus-ring inline-flex rounded-md border border-rose-200 p-2 text-rose-700 hover:bg-rose-50 disabled:text-slate-300" title="Delete transaction">
                       <Trash2 size={16} />

@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 export function JobProfitTable({ jobs, title = "Job profitability" }: { jobs: JobFinancial[]; title?: string }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
       <div className="border-b border-black/10 px-5 py-4">
         <h2 className="text-lg font-semibold">{title}</h2>
       </div>

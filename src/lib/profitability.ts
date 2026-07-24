@@ -5,20 +5,29 @@ export type ProfitabilityTransaction = {
   direction: TransactionDirectionValue;
 };
 
+export function sumMoney(values: number[]) {
+  return values.reduce((cents, value) => cents + Math.round(value * 100), 0) / 100;
+}
+
 export function calculateJobProfitability(actualRevenue: number, transactions: ProfitabilityTransaction[]) {
-  const jobCosts = transactions
-    .filter((transaction) => transaction.direction === "expense")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const cashCollected = transactions
-    .filter((transaction) => transaction.direction === "income")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const grossProfit = actualRevenue - jobCosts;
+  const normalizedRevenue = sumMoney([actualRevenue]);
+  const jobCosts = sumMoney(
+    transactions
+      .filter((transaction) => transaction.direction === "expense")
+      .map((transaction) => transaction.amount),
+  );
+  const cashCollected = sumMoney(
+    transactions
+      .filter((transaction) => transaction.direction === "income")
+      .map((transaction) => transaction.amount),
+  );
+  const grossProfit = sumMoney([normalizedRevenue, -jobCosts]);
 
   return {
-    actualRevenue,
+    actualRevenue: normalizedRevenue,
     jobCosts,
     cashCollected,
     grossProfit,
-    margin: actualRevenue > 0 ? grossProfit / actualRevenue : 0,
+    margin: normalizedRevenue > 0 ? grossProfit / normalizedRevenue : 0,
   };
 }

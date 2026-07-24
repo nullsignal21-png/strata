@@ -15,7 +15,7 @@ export default async function JobsPage() {
       {state.state !== "ready" ? (
         <SetupEmptyState message={state.message} showCommands={state.state !== "database_unavailable"} />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Job costing</p>

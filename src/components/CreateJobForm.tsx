@@ -48,22 +48,30 @@ export function CreateJobForm() {
 
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-lg border border-black/10 bg-white p-5 shadow-sm lg:grid-cols-6">
-      <input name="name" required placeholder="Job name" className="focus-ring rounded-md border border-slate-300 px-3 py-2 lg:col-span-2" />
-      <input name="customerName" required placeholder="Customer" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-      <select name="tradeType" className="focus-ring rounded-md border border-slate-300 px-3 py-2">
+      <input aria-label="Job name" name="name" required placeholder="Job name" className="focus-ring rounded-md border border-slate-300 px-3 py-2 lg:col-span-2" />
+      <input aria-label="Customer name" name="customerName" required placeholder="Customer" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <select aria-label="Trade type" name="tradeType" className="focus-ring rounded-md border border-slate-300 px-3 py-2">
         <option>HVAC</option>
         <option>Plumbing</option>
         <option>Electrical</option>
       </select>
-      <input name="city" placeholder="City" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-      <input name="address" placeholder="Address" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-      <select name="status" className="focus-ring rounded-md border border-slate-300 px-3 py-2">
+      <input aria-label="City" name="city" placeholder="City" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <input aria-label="Address" name="address" placeholder="Address" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <select aria-label="Job status" name="status" className="focus-ring rounded-md border border-slate-300 px-3 py-2">
         <option value="active">Active</option>
         <option value="planned">Planned</option>
         <option value="completed">Completed</option>
       </select>
-      <input name="estimatedRevenue" required type="number" min="0" step="0.01" placeholder="Estimated revenue" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
-      <input name="actualRevenue" required type="number" min="0" step="0.01" placeholder="Actual revenue" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <input aria-label="Estimated revenue" name="estimatedRevenue" required type="number" min="0" step="0.01" placeholder="Estimated revenue" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <input aria-label="Actual revenue" name="actualRevenue" required type="number" min="0" step="0.01" placeholder="Actual revenue" className="focus-ring rounded-md border border-slate-300 px-3 py-2" />
+      <label className="text-xs font-medium text-slate-600">
+        Start date
+        <input name="startDate" type="date" className="focus-ring mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
+      <label className="text-xs font-medium text-slate-600">
+        End date
+        <input name="endDate" type="date" className="focus-ring mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
       <div className="flex items-center gap-2 lg:col-span-6">
         <button disabled={isSaving} className="focus-ring rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:bg-slate-300">
           Save job
@@ -71,7 +79,7 @@ export function CreateJobForm() {
         <button type="button" onClick={() => setIsOpen(false)} className="focus-ring rounded-md px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">
           Cancel
         </button>
-        {error ? <span className="text-sm text-rose-700">{error}</span> : null}
+        {error ? <span role="alert" className="text-sm text-rose-700">{error}</span> : null}
       </div>
     </form>
   );

@@ -5,18 +5,18 @@ export function ProfitChart({ jobs }: { jobs: JobFinancial[] }) {
   const maxProfit = Math.max(...jobs.map((job) => Math.max(job.grossProfit, 0)), 1);
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+    <div className="min-w-0 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Profit by job</h2>
           <p className="mt-1 text-sm text-slate-500">Fast visual check for margin pressure.</p>
         </div>
       </div>
-      <div className="mt-6 grid gap-4">
+      <div className="mt-6 grid grid-cols-1 gap-4">
         {jobs.length ? jobs.map((job) => (
           <div key={job.id}>
-            <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-              <span className="truncate font-medium">{job.name}</span>
+            <div className="mb-2 flex min-w-0 items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate font-medium">{job.name}</span>
               <span className="shrink-0 text-slate-500">
                 {formatCurrency(job.grossProfit)} / {formatPercent(job.margin)}
               </span>

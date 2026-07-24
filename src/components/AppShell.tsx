@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 type="button"
                 aria-label={isMobileOpen ? "Close navigation" : "Open navigation"}
                 onClick={() => setIsMobileOpen((value) => !value)}
-                className="focus-ring rounded-md border border-slate-300 bg-white p-2 text-slate-800"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-800"
               >
                 {isMobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>

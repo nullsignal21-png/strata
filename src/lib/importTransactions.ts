@@ -1,8 +1,16 @@
-import { Prisma, TransactionStatus } from "@prisma/client";
+import { TransactionStatus } from "@prisma/client";
 import { categorizeTransaction } from "@/lib/categorization";
 import type { ParsedTransaction } from "@/lib/csv";
 import { logger } from "@/lib/logging";
 import { getPrisma } from "@/lib/prisma";
+import { sumMoney } from "@/lib/profitability";
+
+export class NoNewTransactionsError extends Error {
+  constructor() {
+    super("No new valid transactions found.");
+    this.name = "NoNewTransactionsError";
+  }
+}
 
 export async function findExistingFingerprints(companyId: string, fingerprints: string[]) {
   if (!fingerprints.length) return new Set<string>();
@@ -32,19 +40,49 @@ export async function importParsedTransactions(input: {
     rowCount: input.totalRows,
   });
 
-  const existingFingerprints = await findExistingFingerprints(
-    input.companyId,
-    input.transactions.map((transaction) => transaction.fingerprint),
-  );
-  const importable = input.transactions.filter((transaction) => !existingFingerprints.has(transaction.fingerprint));
-
   const [jobs, rules] = await Promise.all([
     prisma.job.findMany({ where: { companyId: input.companyId } }),
     prisma.categoryRule.findMany({ where: { companyId: input.companyId } }),
   ]);
 
-  let importedCount = 0;
+  const prepared: Array<{
+    transaction: ParsedTransaction;
+    categorized: Awaited<ReturnType<typeof categorizeTransaction>>;
+  }> = [];
+  for (const transaction of input.transactions) {
+    const categorized = await categorizeTransaction(
+      {
+        merchant: transaction.merchant,
+        description: transaction.description,
+        memo: transaction.memo,
+        rawCategory: transaction.rawCategory,
+        amount: transaction.amount,
+        direction: transaction.direction,
+      },
+      jobs,
+      rules,
+    );
+    prepared.push({ transaction, categorized });
+  }
+
   const batch = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw<Array<{ locked: boolean }>>`
+      SELECT pg_advisory_xact_lock(hashtext(${input.companyId})) IS NULL AS "locked"
+    `;
+    const existing = await tx.transaction.findMany({
+      where: {
+        companyId: input.companyId,
+        fingerprint: { in: prepared.map(({ transaction }) => transaction.fingerprint) },
+      },
+      select: { fingerprint: true },
+    });
+    const existingFingerprints = new Set(existing.map(({ fingerprint }) => fingerprint));
+    const importable = prepared.filter(({ transaction }) => !existingFingerprints.has(transaction.fingerprint));
+    if (!importable.length) throw new NoNewTransactionsError();
+
+    const duplicateCount = input.duplicateCount + existingFingerprints.size;
+    const incomeAmounts: number[] = [];
+    const expenseAmounts: number[] = [];
     const uploadBatch = await tx.uploadBatch.create({
       data: {
         companyId: input.companyId,
@@ -52,65 +90,48 @@ export async function importParsedTransactions(input: {
         rowCount: input.totalRows,
         importedCount: 0,
         invalidCount: input.invalidCount,
-        duplicateCount: input.duplicateCount + existingFingerprints.size,
-        skippedCount: input.invalidCount + input.duplicateCount + existingFingerprints.size,
-        incomeTotal: input.incomeTotal,
-        expenseTotal: input.expenseTotal,
+        duplicateCount,
+        skippedCount: input.invalidCount + duplicateCount,
+        incomeTotal: 0,
+        expenseTotal: 0,
       },
     });
 
-    for (const transaction of importable) {
-      const categorized = await categorizeTransaction(
-        {
-          merchant: transaction.merchant,
+    for (const { transaction, categorized } of importable) {
+      await tx.transaction.create({
+        data: {
+          companyId: input.companyId,
+          uploadBatchId: uploadBatch.id,
+          jobId: categorized.jobId,
+          suggestedJobId: categorized.suggestedJobId,
+          matchConfidence: categorized.matchConfidence,
+          matchReason: categorized.matchReason,
+          date: new Date(`${transaction.date}T00:00:00.000Z`),
           description: transaction.description,
+          merchant: transaction.merchant,
           memo: transaction.memo,
-          rawCategory: transaction.rawCategory,
           amount: transaction.amount,
           direction: transaction.direction,
+          fingerprint: transaction.fingerprint,
+          rawCategory: transaction.rawCategory,
+          aiCategory: categorized.aiCategory,
+          confidence: categorized.confidence,
+          status: categorized.status,
+          source: "csv",
         },
-        jobs,
-        rules,
-      );
-
-      try {
-        await tx.transaction.create({
-          data: {
-            companyId: input.companyId,
-            uploadBatchId: uploadBatch.id,
-            jobId: categorized.jobId,
-            suggestedJobId: categorized.suggestedJobId,
-            matchConfidence: categorized.matchConfidence,
-            matchReason: categorized.matchReason,
-            date: new Date(`${transaction.date}T00:00:00.000Z`),
-            description: transaction.description,
-            merchant: transaction.merchant,
-            memo: transaction.memo,
-            amount: transaction.amount,
-            direction: transaction.direction,
-            fingerprint: transaction.fingerprint,
-            rawCategory: transaction.rawCategory,
-            aiCategory: categorized.aiCategory,
-            confidence: categorized.confidence,
-            status: categorized.status,
-            source: "csv",
-          },
-        });
-        importedCount += 1;
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-          continue;
-        }
-        throw error;
-      }
+      });
+      if (transaction.direction === "income") incomeAmounts.push(transaction.amount);
+      if (transaction.direction === "expense") expenseAmounts.push(transaction.amount);
     }
 
     return tx.uploadBatch.update({
       where: { id: uploadBatch.id },
       data: {
-        importedCount,
-        skippedCount: input.totalRows - importedCount,
-        duplicateCount: input.totalRows - importedCount - input.invalidCount,
+        importedCount: importable.length,
+        skippedCount: input.invalidCount + duplicateCount,
+        duplicateCount,
+        incomeTotal: sumMoney(incomeAmounts),
+        expenseTotal: sumMoney(expenseAmounts),
       },
     });
   });
@@ -118,14 +139,14 @@ export async function importParsedTransactions(input: {
   logger.info("upload_completed", {
     companyId: input.companyId,
     uploadBatchId: batch.id,
-    importedCount,
+    importedCount: batch.importedCount,
     skippedCount: batch.skippedCount,
   });
 
   return {
     batchId: batch.id,
     rowCount: input.totalRows,
-    importedCount,
+    importedCount: batch.importedCount,
     skippedCount: batch.skippedCount,
     duplicateCount: batch.duplicateCount,
     invalidCount: batch.invalidCount,

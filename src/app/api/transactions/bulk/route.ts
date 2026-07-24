@@ -4,12 +4,18 @@ import { categorizeExistingTransactions } from "@/lib/importTransactions";
 import { logger } from "@/lib/logging";
 import { getDemoCompany } from "@/lib/metrics";
 import { getPrisma } from "@/lib/prisma";
+import { readJsonBody, rejectCrossOriginMutation } from "@/lib/requestSecurity";
 import { bulkTransactionSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const parsed = bulkTransactionSchema.safeParse(await request.json().catch(() => null));
+  const originError = rejectCrossOriginMutation(request);
+  if (originError) return originError;
+
+  const body = await readJsonBody(request);
+  if (!body.ok) return body.response;
+  const parsed = bulkTransactionSchema.safeParse(body.data);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid bulk transaction request.", issues: parsed.error.flatten() }, { status: 400 });
   }

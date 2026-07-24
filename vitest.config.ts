@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    fileParallelism: false,
     setupFiles: ["./src/tests/setup.ts"],
     exclude: ["**/node_modules/**", "**/.next/**", "**/src/tests/e2e/**"],
   },

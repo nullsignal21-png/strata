@@ -1,36 +1,44 @@
 # Security Audit Report
 
-## `npm audit --omit=dev` output
-```
-# npm audit report
+Audit date: 2026-07-23
 
-postcss  <8.5.10
-Severity: moderate
-PostCSS has XSS via Unescaped </style> in its CSS Stringify Output - https://github.com/advisories/GHSA-qx2v-qp2m-jg93
-fix available via `npm audit fix --force`
-Will install next@9.3.3, which is a breaking change
-node_modules/next/node_modules/postcss
-  next  9.3.4-canary.0 - 16.3.0-preview.7
-  Depends on vulnerable versions of postcss
-  Depends on vulnerable versions of sharp
-  node_modules/next
+## Dependency Audit
 
-sharp  <0.35.0
-Severity: high
-sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591 - https://github.com/advisories/GHSA-f88m-g3jw-g9cj
-fix available via `npm audit fix --force`
-Will install next@9.3.3, which is a breaking change
-node_modules/sharp
+The lockfile was installed from scratch with `npm ci`.
 
-3 vulnerabilities (1 moderate, 2 high)
-```
+| Command | Result |
+| --- | --- |
+| `npm audit` | 0 vulnerabilities |
+| `npm audit --omit=dev` | 0 vulnerabilities |
 
-## Vulnerability Justification & Mitigation Strategy
+The prior report's PostCSS and Sharp advisories are resolved by Next.js
+16.2.11 plus lockfile overrides for PostCSS 8.5.21 and Sharp 0.35.0. No
+`--force` install or framework downgrade was used.
 
-As requested, here is the explanation for why these vulnerabilities cannot be patched without breaking the application, and why they are acceptable production risks:
+## Application Controls
 
-1. **Unavoidable Dependencies:** Both `postcss` and `sharp` are deeply nested dependencies required by `next` (Next.js) versions between `9.3.4` and `16.3.0-preview.7`. The audit report explicitly states that running `npm audit fix --force` would forcefully downgrade Next.js to version `9.3.3`. Strata is built on Next.js App Router (introduced in version 13), so downgrading to Next.js 9 would instantly break the entire application architecture.
-2. **PostCSS XSS (Moderate):** This vulnerability requires an attacker to inject untrusted payload into the CSS processor. Next.js compiles CSS at build time and does not process user-submitted CSS strings dynamically at runtime in production. Therefore, this XSS vector is unreachable in our deployed application.
-3. **Sharp libvips (High):** This vulnerability affects `libvips` which is used by `sharp` for image optimization (`next/image`). The vulnerability typically requires an attacker to upload maliciously crafted images that trigger an overflow or out-of-bounds read during server-side processing. Next.js does optimize images at runtime, but we can mitigate this by ensuring strict validation of uploaded avatars/logos in the future, or relying on Vercel's built-in image optimization layer which runs in a secured, sandboxed edge environment rather than our application server.
+- Mutation routes enforce same-origin requests.
+- JSON mutation bodies are limited to 64 KiB.
+- CSV uploads require a `.csv` filename, an accepted text/CSV MIME type, a
+  safe basename, at most 2 MiB, and at most 1,000 data rows.
+- CSV text rejects unsafe control characters and text fields over 1,000
+  characters.
+- Exported spreadsheet cells neutralize `=`, `+`, `-`, and `@`, including
+  after leading whitespace.
+- Demo reset tokens use timing-safe comparison and are not embedded in client
+  assets.
+- QuickBooks OAuth requests use a timing-safe state check backed by an
+  HttpOnly, SameSite=Lax cookie.
+- Job and transaction lookups are scoped to the configured demo company.
+- Production client assets contain no reset token, database URL marker, or
+  configured database URL value.
 
-Because Vercel mitigates the `sharp` vulnerability natively at the Edge, and the `postcss` vulnerability is unreachable, these are acceptable risks to ship the beta. We must wait for Next.js to release a patch for version 15+ that bumps `sharp` and `postcss`.
+## Residual Risk
+
+Strata remains an unauthenticated investor demo. Same-origin checks reduce
+browser CSRF risk but do not authenticate direct HTTP clients. Destructive
+routes therefore require an authentication and authorization model before
+multi-tenant or public production use. There is also no distributed rate
+limiting. These are release limitations, not findings represented as fixed.
+
+Detailed evidence is in `SECURITY_QA_RESULTS.md`.

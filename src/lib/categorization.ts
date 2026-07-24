@@ -59,7 +59,10 @@ const incomeRules = [
 ] as const;
 
 function combinedText(input: CategorizationInput) {
-  return `${input.merchant} ${input.description} ${input.memo ?? ""} ${input.rawCategory ?? ""}`.toLowerCase();
+  return `${input.merchant} ${input.description} ${input.memo ?? ""} ${input.rawCategory ?? ""}`
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function allowedCategory(input: CategorizationInput, category: string) {
@@ -68,14 +71,25 @@ function allowedCategory(input: CategorizationInput, category: string) {
 
 function ruleCategory(input: CategorizationInput, rules: CategoryRule[]) {
   const text = combinedText(input);
-  const merchant = input.merchant.toLowerCase();
+  const merchant = input.merchant.toLowerCase().replace(/\s+/g, " ").trim();
 
-  for (const rule of rules) {
-    if (rule.direction !== input.direction || !allowedCategory(input, rule.category)) continue;
-    const keyword = rule.keyword.toLowerCase();
-    if (merchant === keyword || text.includes(keyword)) {
-      return { category: rule.category, confidence: merchant === keyword ? 0.97 : 0.92 };
-    }
+  const companyRule = rules
+    .filter((rule) => rule.direction === input.direction && allowedCategory(input, rule.category))
+    .map((rule) => ({
+      rule,
+      keyword: rule.keyword.toLowerCase().replace(/\s+/g, " ").trim(),
+    }))
+    .filter(({ keyword }) => merchant === keyword || text.includes(keyword))
+    .sort((left, right) => {
+      const exactDifference = Number(merchant === right.keyword) - Number(merchant === left.keyword);
+      return exactDifference || right.keyword.length - left.keyword.length || left.keyword.localeCompare(right.keyword);
+    })[0];
+
+  if (companyRule) {
+    return {
+      category: companyRule.rule.category,
+      confidence: merchant === companyRule.keyword ? 0.97 : 0.92,
+    };
   }
 
   const builtInRules = input.direction === "income" ? incomeRules : expenseRules;

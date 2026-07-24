@@ -16,7 +16,7 @@ export default async function DashboardPage() {
       {metrics.state !== "ready" ? (
         <SetupEmptyState message={metrics.message} showCommands={metrics.state !== "database_unavailable"} />
       ) : (
-        <div className="grid gap-7">
+        <div className="grid grid-cols-1 gap-7">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">{metrics.company.name}</p>
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
             needsReviewCount={metrics.needsReviewCount}
           />
 
-          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr_0.9fr]">
             <ProfitChart jobs={metrics.topJobs} />
             <ReviewQueue jobs={metrics.atRiskJobs} />
           </div>

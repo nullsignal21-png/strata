@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function UploadPage() {
   return (
     <AppShell>
-      <div className="grid gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">CSV import</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-normal">Upload transactions</h1>
