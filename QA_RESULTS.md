@@ -6,13 +6,14 @@ Final QA commit: the immutable HEAD of `qa/strata-brutal-feature-audit`
 
 ## Release Decision
 
-**Local gate: PASS. Remote release gate: PENDING.**
+**Local and GitHub CI gates: PASS. Preview/Production gate: BLOCKED.**
 
 All local correctness, database, browser, accessibility, build, audit, and
-stress gates pass against a disposable database. Production must not be
-updated until Linux GitHub Actions passes and a Vercel Preview is run against
-a Preview-only database. The known Production database was never used for
-mutation.
+stress gates pass against a disposable database. GitHub Actions also passed
+the full Linux workflow, including Firefox. Production must not be updated
+until a Vercel Preview is run against a Preview-only database. No such remote
+database credential is currently available, and the known Production database
+was never used for mutation.
 
 ## Final Command Evidence
 
@@ -30,6 +31,7 @@ mutation.
 | `git diff --check` | Pass; line-ending notices only |
 | `npm audit` | Pass; 0 vulnerabilities |
 | `npm audit --omit=dev` | Pass; 0 vulnerabilities |
+| GitHub Actions run 30059926384 | Pass; 5m25s, 36 Playwright tests |
 
 Baseline was 3 Vitest files with 18 tests and one Playwright demo flow. Final
 coverage is 7 Vitest files with 132 tests plus 29 Playwright tests.
@@ -43,11 +45,24 @@ coverage is 7 Vitest files with 132 tests plus 29 Playwright tests.
 | Chromium mobile | 1 parameterized test covering 30 page/viewport combinations | Pass |
 | WebKit | 7 | Pass |
 | Firefox local | 0 | Explicitly excluded: Playwright Juggler fails before page launch on this Windows host |
-| Firefox Linux CI | 7 configured | Pending GitHub Actions |
+| Firefox Linux CI | 7 | Pass |
 
 The Chromium mobile test covers 375x667, 390x844, 768x1024, 1366x768, and
 1920x1080 across dashboard, upload, transactions, jobs, reports, and settings.
 WebKit axe checks found zero WCAG A/AA violations on the six primary pages.
+The complete Linux run is:
+`https://github.com/nullsignal21-png/strata/actions/runs/30059926384`.
+
+## Deployment Gate
+
+- QA branch remote SHA: `034da820cd256b19c5f39086714e5098cfc159ba`
+  for the code-bearing audit commit.
+- Vercel Preview: not created. The connected project has no Preview deployment
+  and no verified Preview-only database credential.
+- Production: `https://strata-silk-five.vercel.app` remains unchanged on
+  `9f81b3c378018084ae7b66dbbef017dda0a0e609`.
+- Production promotion is intentionally blocked until the complete destructive
+  suite passes on an isolated remote database.
 
 ## Defects Found and Fixed
 

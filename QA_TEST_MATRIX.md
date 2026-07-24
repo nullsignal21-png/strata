@@ -71,7 +71,8 @@ exchange/sync are not implemented.
 | Chromium mobile | 30 page/viewport combinations | Pass, 1 parameterized test |
 | WebKit | Six page/axe checks and focus | Pass, 7 tests |
 | Firefox local | Browser launch diagnostics | Not executed; Windows Juggler fails before page launch |
-| Firefox CI | Linux workflow project | Pending remote CI |
+| Firefox CI | Seven Linux smoke/accessibility tests | Pass |
+| GitHub Actions | PostgreSQL 16, clean install, seed twice, lint, typecheck, 132 Vitest, audits, build, 36 Playwright | Pass |
 | Performance | Production Next server, local disposable DB | Pass within enforced limits; scaling limitation documented |
 | Lint/typecheck/build | Final commands | Pass |
 
@@ -80,5 +81,6 @@ exchange/sync are not implemented.
 - Baseline: 3 test files, 18 Vitest tests, 1 Playwright flow.
 - Final local: 7 test files, 132 Vitest tests, all passed.
 - Final Playwright: 29 executed tests, all passed.
+- Linux CI Playwright: 36 tests, all passed, including 7 Firefox tests.
 - Silent skips: zero. Firefox is explicitly excluded locally with a printed
-  reason and remains configured for Linux CI.
+  reason and was executed successfully in Linux CI.
